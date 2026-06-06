@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EventOps - Mission Control Command Center</title>
+    <!-- Tailwind CSS for utility styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            dark: '#070b17',
+                            panel: 'rgba(13, 22, 45, 0.45)',
+                            border: 'rgba(6, 182, 212, 0.15)',
+                            cyan: '#06b6d4',
+                            indigo: '#6366f1',
+                            amber: '#f59e0b',
+                            red: '#ef4444',
+                            green: '#10b981'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-cyber-dark text-slate-100 min-h-screen flex overflow-hidden">
+
+    <!-- 1. Left Sidebar Navigation -->
+    <aside class="sidebar flex-shrink-0">
+        <div class="sidebar-logo">
+            <h1>EventOps</h1>
+        </div>
+        <ul class="nav-links">
+            <li class="nav-item active" data-tab="dashboard">
+                <a href="#dashboard"><i data-lucide="layout-dashboard"></i> Executive Command</a>
+            </li>
+            <li class="nav-item" data-tab="crowd">
+                <a href="#crowd"><i data-lucide="users"></i> Crowd Monitor</a>
+            </li>
+            <li class="nav-item" data-tab="incidents">
+                <a href="#incidents"><i data-lucide="shield-alert"></i> Incident Command</a>
+            </li>
+            <li class="nav-item" data-tab="volunteers">
+                <a href="#volunteers"><i data-lucide="user-check"></i> Volunteer Dispatch</a>
+            </li>
+            <li class="nav-item" data-tab="transport">
+                <a href="#transport"><i data-lucide="bus"></i> Transit Ops</a>
+            </li>
+            <li class="nav-item" data-tab="resources">
+                <a href="#resources"><i data-lucide="boxes"></i> Resource Command</a>
+            </li>
+            <li class="nav-item" data-tab="assistant">
+                <a href="#assistant"><i data-lucide="bot"></i> Ops Copilot</a>
+            </li>
+            <li class="nav-item" data-tab="analytics">
+                <a href="#analytics"><i data-lucide="bar-chart-3"></i> Analytics Center</a>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            <div class="user-avatar">AD</div>
+            <div class="user-info">
+                <h4>Admin Commander</h4>
+                <p>LEVEL 01 ACCESS</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 2. Main Work Area -->
+    <main class="app-container">
+        <!-- Header Status Bar -->
+        <header class="header">
+            <div class="header-title">
+                <h2>Event Operations Control Room
+                    <span id="system-status-badge" class="status-indicator-badge">
+                        <span id="status-dot-indicator" class="status-dot"></span> LIVE NETWORK ACTIVE
+                    </span>
+                </h2>
+            </div>
+            <div class="header-right">
+                <div class="system-clock">
+                    <i data-lucide="clock"></i>
+                    <span id="clock-display">00:00:00</span>
+                </div>
+                <div class="notification-bell" id="btn-notifications">
+                    <i data-lucide="bell"></i>
+                    <span class="notification-badge-count" id="notification-badge">0</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Alert Ticker/Marquee for Emergencies -->
+        <section class="alert-ticker-container" id="alert-banner" style="display: none;">
+            <span class="alert-ticker-badge">CRITICAL</span>
+            <div class="alert-ticker-track">
+                <span class="alert-ticker-text" id="alert-banner-text">Awaiting telemetry sweep...</span>
+            </div>
+        </section>
+
+        <!-- ================= TABS SECTIONS ================= -->
+
+        <!-- TAB 1: EXECUTIVE COMMAND DASHBOARD -->
+        <div id="tab-dashboard" class="tab-content active">
+            <!-- Metric Cards Panel -->
+            <div class="grid-metrics">
+                <div class="glass-panel metric-card border-cyan">
+                    <div class="metric-label">Total Attendees</div>
+                    <div class="metric-value-container">
+                        <span class="metric-value" id="val-total-attendees">--</span>
+                        <span class="metric-unit">active</span>
+                    </div>
+                    <div class="metric-trend up"><i data-lucide="trending-up"></i> +1.2% (live)</div>
+                </div>
+                <div class="glass-panel metric-card border-indigo">
+                    <div class="metric-label">Crowd Density Index</div>
+                    <div class="metric-value-container">
+                        <span class="metric-value" id="val-crowd-density">--</span>
+                        <span class="metric-unit">/ 10</span>
+                    </div>
+                    <div class="metric-trend" id="trend-crowd-density">Calculating...</div>
+                </div>
+                <div class="glass-panel metric-card border-red">
+                    <div class="metric-label">Active Incidents</div>
+                    <div class="metric-value-container">
+                        <span class="metric-value text-red-500" id="val-active-incidents">0</span>
+                        <span class="metric-unit">unresolved</span>
+                    </div>
+                    <div class="metric-trend" id="trend-incidents">0 critical</div>
+                </div>
+                <div class="glass-panel metric-card border-green">
+                    <div class="metric-label">Available Volunteers</div>
+                    <div class="metric-value-container">
+                        <span class="metric-value" id="val-vol-avail">--</span>
+                        <span class="metric-unit">/ <span id="val-vol-total">--</span></span>
+                    </div>
+                    <div class="metric-trend"><i data-lucide="check-circle-2"></i> Deployable</div>
+                </div>
+                <div class="glass-panel metric-card border-amber">
+                    <div class="metric-label">Transport Status</div>
+                    <div class="metric-value-container">
+                        <span class="metric-value text-amber-500" id="val-transport-status" style="font-size: 1.25rem; line-height: 2rem;">--</span>
+                    </div>
+                    <div class="metric-trend" id="trend-transport">Active loops</div>
+                </div>
+                <div class="glass-panel metric-card border-cyan">
+                    <div class="metric-label">Emergency Readiness</div>
+                    <div class="metric-value-container">
+                        <span class="metric-value" id="val-readiness">--</span>
+                        <span class="metric-unit">%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-1.5 mt-2">
+                        <div id="bar-readiness" class="bg-emerald-500 h-1.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <!-- Tactical Map -->
+                <div class="glass-panel col-8 flex flex-col">
+                    <div class="panel-header">
+                        <h3><i data-lucide="map"></i> Geospatial Event Ops Map</h3>
+                        <div class="flex items-center gap-4 text-xs font-mono text-slate-400">
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> Incident</span>
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span> Shuttle</span>
+                            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Medical</span>
+                        </div>
+                    </div>
+                    <div class="panel-body flex-grow">
+                        <div id="ops-map" class="map-container"></div>
+                    </div>
+                </div>
+
+                <!-- Right Widget Panel: Live Feed & Weather -->
+                <div class="col-4 flex flex-col gap-5">
+                    <!-- Weather Widget -->
+                    <div class="glass-panel p-5">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h4 class="text-xs uppercase text-slate-400 font-bold tracking-wider">Local Site Weather</h4>
+                                <p class="text-2xl font-bold font-mono mt-1">74°F / Clear</p>
+                                <p class="text-xs text-emerald-400 mt-1"><i data-lucide="wind" class="inline w-3 h-3"></i> Wind: N 4mph | Humid: 48%</p>
+                            </div>
+                            <div class="text-amber-400"><i data-lucide="sun" class="w-12 h-12"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- Live Activity Logs -->
+                    <div class="glass-panel flex-grow flex flex-col">
+                        <div class="panel-header">
+                            <h3><i data-lucide="list-todo"></i> Live Operations Feed</h3>
+                        </div>
+                        <div class="panel-body flex-grow overflow-hidden">
+                            <ul class="activity-feed" id="live-activity-list">
+                                <!-- Populated dynamically -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: CROWD MONITORING -->
+        <div id="tab-crowd" class="tab-content">
+            <div class="dashboard-grid">
+                <!-- Zones list -->
+                <div class="glass-panel col-6">
+                    <div class="panel-header">
+                        <h3><i data-lucide="users-2"></i> Zone-Wise Density Telemetry</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="zone-grid" id="crowd-zone-container">
+                            <!-- Zone Cards dynamically inserted -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map & Predictions -->
+                <div class="col-6 flex flex-col gap-6">
+                    <div class="glass-panel flex-grow flex flex-col">
+                        <div class="panel-header">
+                            <h3><i data-lucide="eye"></i> Crowd Hotspot Tracking</h3>
+                        </div>
+                        <div class="panel-body flex-grow">
+                            <div id="crowd-map" class="map-container" style="height: 300px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Prediction risks panel -->
+                    <div class="glass-panel border-cyan">
+                        <div class="panel-header">
+                            <h3><i data-lucide="brain"></i> Crowd Congestion Insights</h3>
+                        </div>
+                        <div class="panel-body" id="ai-crowd-predictions">
+                            <!-- Dynamically updated -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: INCIDENT CENTER -->
+        <div id="tab-incidents" class="tab-content">
+            <div class="dashboard-grid">
+                <!-- Incidents List -->
+                <div class="glass-panel col-8">
+                    <div class="panel-header">
+                        <h3><i data-lucide="shield-alert"></i> Active Tactical Incidents</h3>
+                    </div>
+                    <div class="panel-body" id="incident-roster-container">
+                        <!-- Incident list populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Report Incident console -->
+                <div class="glass-panel col-4">
+                    <div class="panel-header">
+                        <h3><i data-lucide="terminal"></i> Dispatch Logging Console</h3>
+                    </div>
+                    <div class="panel-body">
+                        <form id="incident-report-form">
+                            <div class="form-group">
+                                <label class="form-label" for="inc-title">Incident Title</label>
+                                <input type="text" class="form-control" id="inc-title" placeholder="e.g. Lost Child, Medical Fainting" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="inc-zone">Incident Zone</label>
+                                <select class="form-control" id="inc-zone" required>
+                                    <option value="zone-a">North Entrance (Gate A)</option>
+                                    <option value="zone-b">Main Stage Arena</option>
+                                    <option value="zone-c">Food & Vendor Court</option>
+                                    <option value="zone-d">South Plaza (Exhibits)</option>
+                                    <option value="zone-e">Transportation Hub</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="inc-severity">Severity Rating</label>
+                                <select class="form-control" id="inc-severity" required>
+                                    <option value="Low">Low (Minor log)</option>
+                                    <option value="Medium" selected>Medium (Action needed)</option>
+                                    <option value="High">High (Urgent response)</option>
+                                    <option value="Critical">Critical (Immediate dispatch)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="inc-reporter">Logging Dispatcher / Unit</label>
+                                <input type="text" class="form-control" id="inc-reporter" placeholder="Volunteer, Security Officer" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="inc-desc">Description of Telemetry / Event</label>
+                                <textarea class="form-control" id="inc-desc" rows="3" placeholder="Provide event parameters..." required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-full"><i data-lucide="plus-circle"></i> Log & File Dispatch</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: VOLUNTEER DISPATCH -->
+        <div id="tab-volunteers" class="tab-content">
+            <div class="dashboard-grid">
+                <!-- Directory -->
+                <div class="glass-panel col-8">
+                    <div class="panel-header">
+                        <h3><i data-lucide="user-check"></i> Active Personnel Directory</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="volunteer-grid" id="volunteers-directory-container">
+                            <!-- Dynamically generated cards -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Volunteer optimization -->
+                <div class="glass-panel col-4 flex flex-col">
+                    <div class="panel-header">
+                        <h3><i data-lucide="cpu"></i> Volunteer Allocation Engine</h3>
+                    </div>
+                    <div class="panel-body flex-grow flex flex-col justify-between">
+                        <div class="space-y-4">
+                            <p class="text-sm text-slate-400">
+                                This engine reviews real-time zone capacities and volunteer workload balancing. Click optimized deployment below for suggestions.
+                            </p>
+                            <div class="glass-panel p-4 bg-slate-900/60 border-indigo">
+                                <h4 class="text-xs uppercase text-indigo-400 font-bold mb-2">Optimal Redeployment Suggestions</h4>
+                                <ul class="text-xs space-y-2" id="volunteer-deployment-recommendations">
+                                    <li>Analyzing telemetry metrics...</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary mt-6 w-full" id="btn-balance-workload">
+                            <i data-lucide="git-merge"></i> Auto-Balance Staff Workload
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: TRANSIT OPS -->
+        <!-- FIX: col-5 + col-7 now properly defined in CSS -->
+        <div id="tab-transport" class="tab-content">
+            <div class="dashboard-grid">
+                <!-- Routes Status -->
+                <div class="glass-panel col-5">
+                    <div class="panel-header">
+                        <h3><i data-lucide="route"></i> Transit Loops & Routes</h3>
+                    </div>
+                    <div class="panel-body" id="transit-routes-list">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+
+                <!-- Shuttle fleet roster -->
+                <div class="glass-panel col-7">
+                    <div class="panel-header">
+                        <h3><i data-lucide="truck"></i> Live Shuttle Fleet Tracking</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div id="shuttle-roster-grid">
+                            <!-- Loaded dynamically — CSS grid defined in stylesheet -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Map for Shuttle Locations -->
+                <div class="glass-panel col-12 mt-4">
+                    <div class="panel-header">
+                        <h3><i data-lucide="map-pin"></i> Transit Asset Map</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div id="transit-map" class="map-container" style="height: 300px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: RESOURCE COMMAND -->
+        <div id="tab-resources" class="tab-content">
+            <div class="dashboard-grid">
+                <!-- Assets -->
+                <div class="glass-panel col-7">
+                    <div class="panel-header">
+                        <h3><i data-lucide="boxes"></i> Tactical Asset Roster</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div id="resource-assets-grid">
+                            <!-- Loaded dynamically — CSS grid defined in stylesheet -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supply logs -->
+                <div class="glass-panel col-5 flex flex-col">
+                    <div class="panel-header">
+                        <h3><i data-lucide="clipboard-list"></i> Supply Depot Logistics Log</h3>
+                    </div>
+                    <div class="panel-body flex-grow overflow-auto">
+                        <ul class="activity-feed" id="resource-depot-log">
+                            <li class="activity-item">
+                                <div class="activity-item-header">
+                                    <span class="activity-time font-mono">22:45:00</span>
+                                    <span class="text-emerald-400 font-bold text-xs uppercase">Check</span>
+                                </div>
+                                <span class="activity-desc text-slate-300">Med post 1 reported fully stocked.</span>
+                            </li>
+                            <li class="activity-item">
+                                <div class="activity-item-header">
+                                    <span class="activity-time font-mono">22:10:00</span>
+                                    <span class="text-cyan-400 font-bold text-xs uppercase">Restock</span>
+                                </div>
+                                <span class="activity-desc text-slate-300">Water Station Central ice supplies replenished (200 lbs).</span>
+                            </li>
+                            <li class="activity-item">
+                                <div class="activity-item-header">
+                                    <span class="activity-time font-mono">21:30:00</span>
+                                    <span class="text-amber-400 font-bold text-xs uppercase">Audit</span>
+                                </div>
+                                <span class="activity-desc text-slate-300">Radio communication checks completed successfully. All bands clear.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 7: OPS COPILOT CHAT -->
+        <div id="tab-assistant" class="tab-content">
+            <div class="chat-container">
+                <!-- Preset Prompt Buttons -->
+                <div class="preset-prompts">
+                    <button class="btn-preset" data-prompt="Which area is most crowded?">Which area is most crowded?</button>
+                    <button class="btn-preset" data-prompt="Where should I deploy more volunteers?">Where should I deploy more volunteers?</button>
+                    <button class="btn-preset" data-prompt="Show transportation bottlenecks.">Show transportation bottlenecks.</button>
+                    <button class="btn-preset" data-prompt="Predict risks for the next 2 hours.">Predict risks for the next 2 hours.</button>
+                    <button class="btn-preset" data-prompt="What actions should the operations team take right now?">What actions should the team take right now?</button>
+                </div>
+                <!-- Chat Window -->
+                <div class="chat-history" id="copilot-chat-history">
+                    <div class="chat-message bot">
+                        <h3>EventOps Commander Copilot</h3>
+                        <p>Welcome, Commander. I have analyzed all event parameters (14,250 attendees, crowd levels, incident queues, transit shuttles). Ready for tactical instructions.</p>
+                    </div>
+                </div>
+                <!-- Chat Input bar -->
+                <div class="chat-input-area">
+                    <input type="text" class="form-control flex-grow" id="copilot-input-box" placeholder="Ask Ops Copilot for operational directives..." autocomplete="off">
+                    <button class="btn btn-primary" id="btn-send-copilot"><i data-lucide="send"></i> Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 8: ANALYTICS CENTER -->
+        <div id="tab-analytics" class="tab-content">
+            <div class="dashboard-grid">
+                <div class="glass-panel col-6">
+                    <div class="panel-header">
+                        <h3><i data-lucide="line-chart"></i> Attendee Capacity & Crowd Trend</h3>
+                    </div>
+                    <div class="panel-body">
+                        <canvas id="chart-crowd-density" height="240"></canvas>
+                    </div>
+                </div>
+
+                <div class="glass-panel col-6">
+                    <div class="panel-header">
+                        <h3><i data-lucide="bar-chart"></i> Volunteer Assignment Allocation</h3>
+                    </div>
+                    <div class="panel-body">
+                        <canvas id="chart-volunteer-allocation" height="240"></canvas>
+                    </div>
+                </div>
+
+                <div class="glass-panel col-6">
+                    <div class="panel-header">
+                        <h3><i data-lucide="pie-chart"></i> Resource Consumption Speed</h3>
+                    </div>
+                    <div class="panel-body">
+                        <canvas id="chart-resource-utilization" height="240"></canvas>
+                    </div>
+                </div>
+
+                <div class="glass-panel col-6">
+                    <div class="panel-header">
+                        <h3><i data-lucide="history"></i> Incident Triage Timeline</h3>
+                    </div>
+                    <div class="panel-body">
+                        <canvas id="chart-incident-timeline" height="240"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 3. Dynamic Dispatch Modal (For Volunteer Assignment) -->
+    <div class="dispatch-overlay" id="dispatch-modal-overlay">
+        <div class="glass-panel dispatch-modal">
+            <div class="panel-header">
+                <h3><i data-lucide="user-plus"></i> Reassign Volunteer</h3>
+                <button id="btn-close-dispatch" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+            </div>
+            <div class="panel-body">
+                <p class="text-sm text-slate-300 mb-4">Select target deployment sector for volunteer <strong id="dispatch-vol-name" class="text-cyan-400">...</strong>:</p>
+                <input type="hidden" id="dispatch-vol-id">
+                <div class="form-group">
+                    <label class="form-label" for="dispatch-zone-select">Target Zone</label>
+                    <select class="form-control" id="dispatch-zone-select">
+                        <option value="zone-a">North Entrance (Gate A)</option>
+                        <option value="zone-b">Main Stage Arena</option>
+                        <option value="zone-c">Food & Vendor Court</option>
+                        <option value="zone-d">South Plaza (Exhibits)</option>
+                        <option value="zone-e">Transportation Hub</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary w-full mt-4" id="btn-submit-dispatch"><i data-lucide="send"></i> Dispatch Personnel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Interactive Simulation Panel -->
+    <div class="demo-controller-drawer" id="demo-controller-drawer">
+        <div class="demo-btn" id="demo-toggle-btn">
+            <i data-lucide="flame"></i>
+        </div>
+        <div class="demo-content">
+            <h4>Judge Demo Panel</h4>
+            <button class="btn-demo-trigger" data-trigger="crowd_surge">
+                <i data-lucide="users-2"></i> Trigger Crowd Surge
+            </button>
+            <button class="btn-demo-trigger" data-trigger="medical_emergency">
+                <i data-lucide="ambulance"></i> Trigger Medical Crisis
+            </button>
+            <button class="btn-demo-trigger" data-trigger="shuttle_delay">
+                <i data-lucide="clock-alert"></i> Shuttle Bottleneck
+            </button>
+            <button class="btn-demo-trigger reset" data-trigger="reset">
+                <i data-lucide="refresh-cw"></i> Reset Scenario
+            </button>
+        </div>
+    </div>
+
+    <!-- ChartJS library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- LeafletJS library -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Dynamic JS Logic Controllers -->
+    <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/copilot.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
